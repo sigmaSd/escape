@@ -45,9 +45,8 @@ impl Con {
     }
     fn exec_cmd(&self, s: TcpStream, cmd: std::str::Split<&str>) -> io::Result<()> {
         let cmd = cmd.collect::<Vec<&str>>().join(" ");
-        Self::handle_edge_case(&cmd)?;
 
-        let out = execute(&cmd);
+        let out = execute(&cmd)?;
 
         Self::return_out(s, &out);
         println!("{}", &out);
@@ -69,12 +68,6 @@ impl Con {
         response.extend(content.bytes());
         stream.write_all(&response).unwrap();
         stream.flush().unwrap();
-    }
-    fn handle_edge_case(cmd: &str) -> io::Result<()> {
-        match cmd {
-            "favicon.ico" => Err(io::Error::new(io::ErrorKind::Other, cmd)),
-            _ => Ok(()),
-        }
     }
 }
 
