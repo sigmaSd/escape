@@ -5,24 +5,30 @@ use std::process::Command;
 struct Con {
     listener: TcpListener,
     stream: String,
+    last_cmd: String,
 }
 
 impl Con {
     fn connect() -> io::Result<Self> {
-        let listener = TcpListener::bind("127.0.0.1:40566")?;
+        let listener = TcpListener::bind("0.0.0.0:40566")?;
         Ok(Self {
             listener,
             stream: String::new(),
+            last_cmd: String::new(),
         })
     }
     fn start(&mut self) -> io::Result<()> {
+        let mut buffer = [0; 124];
         for stream in self.listener.incoming() {
             self.stream.clear();
             let mut s = stream?;
-            s.read_to_string(&mut self.stream)?;
+            s.read_exact(&mut buffer)?;
+            self.stream = String::from_utf8_lossy(&buffer).to_string();
             if let Some(cmd) = self.get_cmd() {
-                match Self::exec_cmd(cmd) {
-                    Ok(_) => (),
+                match self.exec_cmd(cmd) {
+                    Ok(c_cmd) => {
+                        self.last_cmd = c_cmd;
+                    }
                     Err(_) => continue,
                 }
             }
@@ -38,11 +44,18 @@ impl Con {
         let unescaped = &self.stream[5..http_idx];
         Some(unescaped.split("%20"))
     }
-    fn exec_cmd(mut cmd: std::str::Split<&str>) -> io::Result<()> {
+    fn exec_cmd(&self, mut cmd: std::str::Split<&str>) -> io::Result<String> {
+        let c_cmd = cmd.clone().collect::<String>();
+
+        //XXX Hack
+        if c_cmd == self.last_cmd {
+            return Ok(c_cmd);
+        }
+
         Command::new(cmd.nth(0).unwrap())
             .args(&cmd.collect::<Vec<&str>>())
             .spawn()?;
-        Ok(())
+        Ok(c_cmd)
     }
 }
 
