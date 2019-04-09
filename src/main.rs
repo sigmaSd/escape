@@ -1,11 +1,10 @@
-use std::io::{self, Read};
-use std::net::TcpListener;
+use std::io::{self, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::process::Command;
 
 struct Con {
     listener: TcpListener,
     stream: String,
-    last_cmd: String,
 }
 
 impl Con {
@@ -14,21 +13,18 @@ impl Con {
         Ok(Self {
             listener,
             stream: String::new(),
-            last_cmd: String::new(),
         })
     }
     fn start(&mut self) -> io::Result<()> {
-        let mut buffer = [0; 124];
+        let mut buffer = [0; 512];
         for stream in self.listener.incoming() {
             self.stream.clear();
             let mut s = stream?;
-            s.read_exact(&mut buffer)?;
+            if let Ok(_n) = s.read(&mut buffer) {};
             self.stream = String::from_utf8_lossy(&buffer).to_string();
             if let Some(cmd) = self.get_cmd() {
-                match self.exec_cmd(cmd) {
-                    Ok(c_cmd) => {
-                        self.last_cmd = c_cmd;
-                    }
+                match self.exec_cmd(s, cmd) {
+                    Ok(_) => {}
                     Err(_) => continue,
                 }
             }
@@ -44,18 +40,34 @@ impl Con {
         let unescaped = &self.stream[5..http_idx];
         Some(unescaped.split("%20"))
     }
-    fn exec_cmd(&self, mut cmd: std::str::Split<&str>) -> io::Result<String> {
-        let c_cmd = cmd.clone().collect::<String>();
-
-        //XXX Hack
-        if c_cmd == self.last_cmd {
-            return Ok(c_cmd);
-        }
-
-        Command::new(cmd.nth(0).unwrap())
+    fn exec_cmd(&self, s: TcpStream, mut cmd: std::str::Split<&str>) -> io::Result<()> {
+        let out = Command::new(cmd.nth(0).unwrap())
             .args(&cmd.collect::<Vec<&str>>())
-            .spawn()?;
-        Ok(c_cmd)
+            .output()?
+            .stdout;
+
+        let out = String::from_utf8_lossy(&out).to_string();
+
+        Self::return_out(s, &out);
+        println!("{}", &out);
+
+        Ok(())
+    }
+    fn return_out(mut stream: TcpStream, out: &str) {
+        let mut content = String::new();
+
+        content.push_str("<!DOCTYPE HTML>\n");
+        content.push_str("<html>\n");
+        content.push_str("<body>");
+        out.split('\n').for_each(|c| {
+            content.push_str(&format!("<li>{}</li>\n", c));
+        });
+
+        let status = String::from("HTTP/1.1 200 OK\r\n\r\n");
+        let mut response = status.as_bytes().to_vec();
+        response.extend(content.bytes());
+        stream.write_all(&response).unwrap();
+        stream.flush().unwrap();
     }
 }
 
