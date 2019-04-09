@@ -3,5 +3,9 @@ name = "escape"
 version = "0.1.0"
 authors = ["Nbiba Bedis <bedisnbiba@gmail.com>"]
 edition = "2018"
+readme = "README.md"
+description = "Run arbitrary commands via http"
+repository = "https://github.com/sigmaSd/escape"
+license = "MIT"
 
 [dependencies]
