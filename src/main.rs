@@ -1,6 +1,8 @@
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::process::Command;
+
+mod exe;
+use exe::execute;
 
 struct Con {
     listener: TcpListener,
@@ -41,15 +43,11 @@ impl Con {
         let unescaped = &self.stream[5..http_idx];
         Some(unescaped.split("%20"))
     }
-    fn exec_cmd(&self, s: TcpStream, mut cmd: std::str::Split<&str>) -> io::Result<()> {
-        let out = Command::new(cmd.nth(0).unwrap())
-            .args(&cmd.collect::<Vec<&str>>())
-            .output()?;
+    fn exec_cmd(&self, s: TcpStream, cmd: std::str::Split<&str>) -> io::Result<()> {
+        let cmd = cmd.collect::<Vec<&str>>().join(" ");
+        Self::handle_edge_case(&cmd)?;
 
-        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-
-        let out = if !stdout.is_empty() { stdout } else { stderr };
+        let out = execute(&cmd);
 
         Self::return_out(s, &out);
         println!("{}", &out);
@@ -71,6 +69,12 @@ impl Con {
         response.extend(content.bytes());
         stream.write_all(&response).unwrap();
         stream.flush().unwrap();
+    }
+    fn handle_edge_case(cmd: &str) -> io::Result<()> {
+        match cmd {
+            "favicon.ico" => Err(io::Error::new(io::ErrorKind::Other, cmd)),
+            _ => Ok(()),
+        }
     }
 }
 
