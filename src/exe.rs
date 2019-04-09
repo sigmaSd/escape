@@ -9,7 +9,7 @@ pub fn execute(cmd: &str) -> io::Result<String> {
     }
 
     let mut s = String::new();
-    mem.unwrap().stdout.unwrap().read_to_string(&mut s).unwrap();
+    mem.unwrap().stdout.unwrap().read_to_string(&mut s)?;
     Ok(s)
 }
 fn run(mem: Option<Child>, c: &str) -> io::Result<Child> {
